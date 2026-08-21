@@ -1,11 +1,28 @@
-<script setup></script>
+<script setup>
+import Navbar from './components/Navbar.vue'
+</script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <Navbar />
+  
+  <main>
+    <h1>Let's Learn Together</h1>
+    <p>Learn anything, together — one lesson at a time.</p>
+  </main>
 </template>
 
-<style scoped></style>
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+main {
+  padding: 60px 30px;
+  text-align: center;
+}
+</style>
