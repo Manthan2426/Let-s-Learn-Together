@@ -7,11 +7,15 @@
     </div>
 
     <div class="nav-links">
-      <a href="#" class="active">Home</a>
-      <a href="#">Courses</a>
-      <a href="#">How it works</a>
-      <a href="#">Why us</a>
-      <a href="#">Reviews</a>
+     <a href="#home">Home</a>
+
+     <a href="#courses">Courses</a>
+
+     <a href="#how-it-works">How it works</a>
+
+     <a href="#why-us">Why us</a>
+
+     <a href="#reviews">Reviews</a>
     </div>
 
     <div class="nav-actions">
