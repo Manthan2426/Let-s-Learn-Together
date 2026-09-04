@@ -1,48 +1,24 @@
 <script setup>
-const categories = [
-  {
-    id: 1,
-    icon: '💻',
-    title: 'Coding & Tech',
-    courses: '120+ courses',
-    color: 'purple',
-  },
-  {
-    id: 2,
-    icon: '📐',
-    title: 'Math & Science',
-    courses: '80+ courses',
-    color: 'orange',
-  },
-  {
-    id: 3,
-    icon: '🌐',
-    title: 'Languages',
-    courses: '60+ courses',
-    color: 'blue',
-  },
-  {
-    id: 4,
-    icon: '🎨',
-    title: 'Art & Design',
-    courses: '70+ courses',
-    color: 'pink',
-  },
-  {
-    id: 5,
-    icon: '🎵',
-    title: 'Music & Voice',
-    courses: '45+ courses',
-    color: 'green',
-  },
-  {
-    id: 6,
-    icon: '🚀',
-    title: 'Life & Career',
-    courses: '90+ courses',
-    color: 'teal',
-  },
-]
+import { onMounted, ref } from 'vue'
+import { getCategories } from '../lib/api'
+
+const categories = ref([])
+const loading = ref(true)
+const error = ref('')
+
+async function loadCategories() {
+  loading.value = true
+  error.value = ''
+  try {
+    categories.value = await getCategories()
+  } catch (e) {
+    error.value = 'Categories load nahi ho paaye. Backend start hai? Check /api/categories/.'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadCategories)
 </script>
 
 <template>
@@ -65,7 +41,16 @@ const categories = [
         </div>
       </div>
 
-      <div class="categories-grid">
+      <div v-if="loading" class="state-msg">
+        <span class="spinner"></span> Categories load ho rahe hain…
+      </div>
+
+      <div v-else-if="error" class="state-msg error">
+        {{ error }}
+        <button class="retry-btn" @click="loadCategories">Retry</button>
+      </div>
+
+      <div v-else class="categories-grid">
 
         <div
           v-for="category in categories"
@@ -215,6 +200,52 @@ const categories = [
 
 .category-card.teal {
   background: #e2f7f7;
+}
+
+/* Loading / error states */
+
+.state-msg {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 40px;
+  justify-content: center;
+  color: #6c7485;
+  font-size: 17px;
+  background: #ffffff;
+  border: 1px solid #e6e8f0;
+  border-radius: 18px;
+}
+
+.state-msg.error {
+  color: #c0392b;
+  background: #ffe9e9;
+  flex-direction: column;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid #d7d9e2;
+  border-top-color: #5b55e8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.retry-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 22px;
+  background: #5b55e8;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 /* Responsive */

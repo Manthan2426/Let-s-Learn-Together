@@ -1,48 +1,24 @@
 <script setup>
-const courses = [
-  {
-    id: 1,
-    icon: '💻',
-    category: 'CODING & TECH',
-    title: 'JavaScript from Zero to Hero',
-    lessons: '48 lessons',
-    duration: '12h 30m',
-    level: 'Beginner',
-    rating: '4.9',
-    students: '12.4k',
-    price: '₹1,299',
-    oldPrice: '₹1,999',
-    color: 'purple',
-  },
-  {
-    id: 2,
-    icon: '📐',
-    category: 'MATH & SCIENCE',
-    title: 'Master Algebra — Step by Step',
-    lessons: '36 lessons',
-    duration: '9h 15m',
-    level: 'Beginner',
-    rating: '4.8',
-    students: '8.7k',
-    price: '₹999',
-    oldPrice: '₹1,499',
-    color: 'orange',
-  },
-  {
-    id: 3,
-    icon: '🎨',
-    category: 'ART & DESIGN',
-    title: 'Sketching for Absolute Beginners',
-    lessons: '24 lessons',
-    duration: '6h 20m',
-    level: 'Beginner',
-    rating: '4.9',
-    students: '6.2k',
-    price: '₹799',
-    oldPrice: '₹1,199',
-    color: 'pink',
-  },
-]
+import { onMounted, ref } from 'vue'
+import { getCourses } from '../lib/api'
+
+const courses = ref([])
+const loading = ref(true)
+const error = ref('')
+
+async function loadCourses() {
+  loading.value = true
+  error.value = ''
+  try {
+    courses.value = await getCourses()
+  } catch (e) {
+    error.value = 'Courses load nahi ho paaye. Backend start hai? Check /api/courses/.'
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadCourses)
 </script>
 
 <template>
@@ -70,8 +46,19 @@ const courses = [
         </button>
       </div>
 
+      <!-- Loading -->
+      <div v-if="loading" class="state-msg">
+        <span class="spinner"></span> Courses load ho rahe hain…
+      </div>
+
+      <!-- Error -->
+      <div v-else-if="error" class="state-msg error">
+        {{ error }}
+        <button class="retry-btn" @click="loadCourses">Retry</button>
+      </div>
+
       <!-- Course Cards -->
-      <div class="courses-grid">
+      <div v-else class="courses-grid">
 
         <article
           v-for="course in courses"
@@ -243,6 +230,63 @@ const courses = [
 
 .course-image.pink {
   background: #fdeaf2;
+}
+
+.course-image.teal {
+  background: #e2f7f7;
+}
+
+.course-image.green {
+  background: #e3f6f0;
+}
+
+.course-image.blue {
+  background: #e8f0ff;
+}
+
+/* Loading / error states */
+
+.state-msg {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 40px;
+  justify-content: center;
+  color: #6c7485;
+  font-size: 17px;
+  background: #f7f8fc;
+  border-radius: 18px;
+}
+
+.state-msg.error {
+  color: #c0392b;
+  background: #ffe9e9;
+  flex-direction: column;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid #d7d9e2;
+  border-top-color: #5b55e8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.retry-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 22px;
+  background: #5b55e8;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .course-icon {
