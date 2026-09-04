@@ -3,6 +3,7 @@ import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
 import RegisterView from '../views/RegisterView.vue'
 import CourseDetailView from '../views/CourseDetailView.vue'
+import MyLearningView from '../views/MyLearningView.vue'
 
 const routes = [
   {
@@ -14,6 +15,11 @@ const routes = [
     path: '/courses/:slug',
     name: 'course-detail',
     component: CourseDetailView,
+  },
+  {
+    path: '/mylearning',
+    name: 'my-learning',
+    component: MyLearningView,
   },
   {
     path: '/login',

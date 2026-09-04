@@ -28,6 +28,7 @@ function onLogout() {
       <a href="/#how-it-works">How it works</a>
       <a href="/#why-us">Why us</a>
       <a href="/#reviews">Reviews</a>
+      <router-link v-if="isAuthenticated" to="/mylearning">My Learning</router-link>
     </div>
 
     <div class="nav-actions">
@@ -44,6 +45,9 @@ function onLogout() {
           Hey, {{ user?.username || 'learner' }} ▾
         </button>
         <div v-if="menuOpen" class="dropdown">
+          <router-link to="/mylearning" class="dropdown-item" @click="menuOpen = false">
+            My Learning
+          </router-link>
           <button class="dropdown-item" @click="onLogout">Sign out</button>
         </div>
       </div>
@@ -214,6 +218,9 @@ function onLogout() {
   font-weight: 600;
   border-radius: 10px;
   cursor: pointer;
+  text-decoration: none;
+  display: block;
+  box-sizing: border-box;
 }
 
 .dropdown-item:hover {
