@@ -1,48 +1,59 @@
 <script setup>
-const courses = [
-  {
-    id: 1,
-    icon: '💻',
-    category: 'CODING & TECH',
-    title: 'JavaScript from Zero to Hero',
-    lessons: '48 lessons',
-    duration: '12h 30m',
-    level: 'Beginner',
-    rating: '4.9',
-    students: '12.4k',
-    price: '₹1,299',
-    oldPrice: '₹1,999',
-    color: 'purple',
-  },
-  {
-    id: 2,
-    icon: '📐',
-    category: 'MATH & SCIENCE',
-    title: 'Master Algebra — Step by Step',
-    lessons: '36 lessons',
-    duration: '9h 15m',
-    level: 'Beginner',
-    rating: '4.8',
-    students: '8.7k',
-    price: '₹999',
-    oldPrice: '₹1,499',
-    color: 'orange',
-  },
-  {
-    id: 3,
-    icon: '🎨',
-    category: 'ART & DESIGN',
-    title: 'Sketching for Absolute Beginners',
-    lessons: '24 lessons',
-    duration: '6h 20m',
-    level: 'Beginner',
-    rating: '4.9',
-    students: '6.2k',
-    price: '₹799',
-    oldPrice: '₹1,199',
-    color: 'pink',
-  },
-]
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { enrollInCourse, getCourses } from '../lib/api'
+import { useAuth } from '../store/auth'
+
+const router = useRouter()
+const { isAuthenticated } = useAuth()
+
+const courses = ref([])
+const loading = ref(true)
+const error = ref('')
+const enrollingId = ref(null)
+const enrollMsg = ref('')
+const enrolledMap = ref({})
+
+async function loadCourses() {
+  loading.value = true
+  error.value = ''
+  try {
+    courses.value = await getCourses()
+  } catch (e) {
+    error.value = 'Courses load nahi ho paaye. Backend start hai? Check /api/courses/.'
+  } finally {
+    loading.value = false
+  }
+}
+
+function openCourse(course) {
+  router.push({ name: 'course-detail', params: { slug: course.slug } })
+}
+
+async function onEnroll(e, course) {
+  e.stopPropagation()
+  if (!isAuthenticated.value) {
+    router.push({ name: 'login', query: { next: `/courses/${course.slug}` } })
+    return
+  }
+  enrollingId.value = course.id
+  enrollMsg.value = ''
+  try {
+    await enrollInCourse(course.id)
+    enrolledMap.value[course.id] = true
+    enrollMsg.value = `You're enrolled in "${course.title}"! 🎉`
+  } catch (e) {
+    if (e.message === 'AUTH_REQUIRED') {
+      router.push({ name: 'login', query: { next: `/courses/${course.slug}` } })
+    } else {
+      enrollMsg.value = e.message
+    }
+  } finally {
+    enrollingId.value = null
+  }
+}
+
+onMounted(loadCourses)
 </script>
 
 <template>
@@ -70,13 +81,25 @@ const courses = [
         </button>
       </div>
 
+      <!-- Loading -->
+      <div v-if="loading" class="state-msg">
+        <span class="spinner"></span> Courses load ho rahe hain…
+      </div>
+
+      <!-- Error -->
+      <div v-else-if="error" class="state-msg error">
+        {{ error }}
+        <button class="retry-btn" @click="loadCourses">Retry</button>
+      </div>
+
       <!-- Course Cards -->
-      <div class="courses-grid">
+      <div v-else class="courses-grid">
 
         <article
           v-for="course in courses"
           :key="course.id"
           class="course-card"
+          @click="openCourse(course)"
         >
 
           <!-- Course Image / Icon -->
@@ -119,8 +142,10 @@ const courses = [
                 <del>{{ course.oldPrice }}</del>
               </div>
 
-              <button class="enroll-btn">
-                Enroll
+              <button class="enroll-btn" @click="onEnroll($event, course)" :disabled="enrollingId === course.id">
+                <span v-if="enrollingId === course.id">Enrolling…</span>
+                <span v-else-if="enrolledMap[course.id]">Enrolled ✓</span>
+                <span v-else>Enroll</span>
               </button>
 
             </div>
@@ -130,6 +155,8 @@ const courses = [
         </article>
 
       </div>
+
+      <div v-if="enrollMsg" class="enroll-toast">{{ enrollMsg }}</div>
     </div>
   </section>
 </template>
@@ -216,6 +243,7 @@ const courses = [
   border-radius: 22px;
   box-shadow: 0 8px 25px rgba(31, 36, 48, 0.07);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
 }
 
 .course-card:hover {
@@ -243,6 +271,82 @@ const courses = [
 
 .course-image.pink {
   background: #fdeaf2;
+}
+
+.course-image.teal {
+  background: #e2f7f7;
+}
+
+.course-image.green {
+  background: #e3f6f0;
+}
+
+.course-image.blue {
+  background: #e8f0ff;
+}
+
+/* Loading / error states */
+
+.state-msg {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 40px;
+  justify-content: center;
+  color: #6c7485;
+  font-size: 17px;
+  background: #f7f8fc;
+  border-radius: 18px;
+}
+
+.state-msg.error {
+  color: #c0392b;
+  background: #ffe9e9;
+  flex-direction: column;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid #d7d9e2;
+  border-top-color: #5b55e8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.retry-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 22px;
+  background: #5b55e8;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.enroll-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.enroll-toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1c9c7a;
+  color: white;
+  padding: 14px 22px;
+  border-radius: 40px;
+  font-weight: 600;
+  box-shadow: 0 12px 30px rgba(28, 156, 122, 0.35);
+  z-index: 50;
 }
 
 .course-icon {
