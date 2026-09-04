@@ -1,8 +1,9 @@
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../store/auth'
 
+const route = useRoute()
 const router = useRouter()
 const { login } = useAuth()
 
@@ -16,7 +17,8 @@ async function onSubmit() {
   loading.value = true
   try {
     await login(username.value, password.value)
-    router.push('/')
+    // If the user was sent here to enroll, send them back there.
+    router.push(route.query.next || '/')
   } catch (e) {
     error.value = e.message || 'Something went wrong.'
   } finally {

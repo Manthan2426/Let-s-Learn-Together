@@ -26,9 +26,14 @@ async function loadCourses() {
   }
 }
 
-async function onEnroll(course) {
+function openCourse(course) {
+  router.push({ name: 'course-detail', params: { slug: course.slug } })
+}
+
+async function onEnroll(e, course) {
+  e.stopPropagation()
   if (!isAuthenticated.value) {
-    router.push('/login')
+    router.push({ name: 'login', query: { next: `/courses/${course.slug}` } })
     return
   }
   enrollingId.value = course.id
@@ -39,7 +44,7 @@ async function onEnroll(course) {
     enrollMsg.value = `You're enrolled in "${course.title}"! 🎉`
   } catch (e) {
     if (e.message === 'AUTH_REQUIRED') {
-      router.push('/login')
+      router.push({ name: 'login', query: { next: `/courses/${course.slug}` } })
     } else {
       enrollMsg.value = e.message
     }
@@ -94,6 +99,7 @@ onMounted(loadCourses)
           v-for="course in courses"
           :key="course.id"
           class="course-card"
+          @click="openCourse(course)"
         >
 
           <!-- Course Image / Icon -->
@@ -136,7 +142,7 @@ onMounted(loadCourses)
                 <del>{{ course.oldPrice }}</del>
               </div>
 
-              <button class="enroll-btn" @click="onEnroll(course)" :disabled="enrollingId === course.id">
+              <button class="enroll-btn" @click="onEnroll($event, course)" :disabled="enrollingId === course.id">
                 <span v-if="enrollingId === course.id">Enrolling…</span>
                 <span v-else-if="enrolledMap[course.id]">Enrolled ✓</span>
                 <span v-else>Enroll</span>
@@ -237,6 +243,7 @@ onMounted(loadCourses)
   border-radius: 22px;
   box-shadow: 0 8px 25px rgba(31, 36, 48, 0.07);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
 }
 
 .course-card:hover {
