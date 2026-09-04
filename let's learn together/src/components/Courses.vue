@@ -1,10 +1,18 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { getCourses } from '../lib/api'
+import { useRouter } from 'vue-router'
+import { enrollInCourse, getCourses } from '../lib/api'
+import { useAuth } from '../store/auth'
+
+const router = useRouter()
+const { isAuthenticated } = useAuth()
 
 const courses = ref([])
 const loading = ref(true)
 const error = ref('')
+const enrollingId = ref(null)
+const enrollMsg = ref('')
+const enrolledMap = ref({})
 
 async function loadCourses() {
   loading.value = true
@@ -15,6 +23,28 @@ async function loadCourses() {
     error.value = 'Courses load nahi ho paaye. Backend start hai? Check /api/courses/.'
   } finally {
     loading.value = false
+  }
+}
+
+async function onEnroll(course) {
+  if (!isAuthenticated.value) {
+    router.push('/login')
+    return
+  }
+  enrollingId.value = course.id
+  enrollMsg.value = ''
+  try {
+    await enrollInCourse(course.id)
+    enrolledMap.value[course.id] = true
+    enrollMsg.value = `You're enrolled in "${course.title}"! 🎉`
+  } catch (e) {
+    if (e.message === 'AUTH_REQUIRED') {
+      router.push('/login')
+    } else {
+      enrollMsg.value = e.message
+    }
+  } finally {
+    enrollingId.value = null
   }
 }
 
@@ -106,8 +136,10 @@ onMounted(loadCourses)
                 <del>{{ course.oldPrice }}</del>
               </div>
 
-              <button class="enroll-btn">
-                Enroll
+              <button class="enroll-btn" @click="onEnroll(course)" :disabled="enrollingId === course.id">
+                <span v-if="enrollingId === course.id">Enrolling…</span>
+                <span v-else-if="enrolledMap[course.id]">Enrolled ✓</span>
+                <span v-else>Enroll</span>
               </button>
 
             </div>
@@ -117,6 +149,8 @@ onMounted(loadCourses)
         </article>
 
       </div>
+
+      <div v-if="enrollMsg" class="enroll-toast">{{ enrollMsg }}</div>
     </div>
   </section>
 </template>
@@ -287,6 +321,25 @@ onMounted(loadCourses)
   color: white;
   font-weight: 700;
   cursor: pointer;
+}
+
+.enroll-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.enroll-toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1c9c7a;
+  color: white;
+  padding: 14px 22px;
+  border-radius: 40px;
+  font-weight: 600;
+  box-shadow: 0 12px 30px rgba(28, 156, 122, 0.35);
+  z-index: 50;
 }
 
 .course-icon {

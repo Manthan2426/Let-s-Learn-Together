@@ -69,3 +69,33 @@ export async function getCategories() {
 export async function getCourse(slug) {
   return request(`/courses/${slug}/`)
 }
+
+// Enrol the current user in a course (requires the JWT token attached).
+export async function enrollInCourse(courseId) {
+  const token = localStorage.getItem('llt_access')
+  const res = await fetch(`${BASE}/enrollments/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ course_id: courseId }),
+  })
+  if (!res.ok) {
+    if (res.status === 401) {
+      throw new Error('AUTH_REQUIRED')
+    }
+    throw new Error(`Enrolment failed (${res.status}).`)
+  }
+  return res.json()
+}
+
+// List the current user's enrollments.
+export async function getMyEnrollments() {
+  const token = localStorage.getItem('llt_access')
+  const res = await fetch(`${BASE}/enrollments/`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!res.ok) throw new Error(`Could not load enrollments (${res.status})`)
+  return res.json()
+}
