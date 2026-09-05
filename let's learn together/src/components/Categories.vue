@@ -1,57 +1,121 @@
 <script setup>
-const categories = [
+import { ref, onMounted } from "vue";
+import api from "../services/api";
+
+const categories = ref([]);
+const loading = ref(true);
+const error = ref("");
+
+
+// Category ke liye frontend styling
+const categoryStyles = [
   {
-    id: 1,
-    icon: '💻',
-    title: 'Coding & Tech',
-    courses: '120+ courses',
-    color: 'purple',
+    icon: "💻",
+    color: "purple",
   },
   {
-    id: 2,
-    icon: '📐',
-    title: 'Math & Science',
-    courses: '80+ courses',
-    color: 'orange',
+    icon: "📐",
+    color: "orange",
   },
   {
-    id: 3,
-    icon: '🌐',
-    title: 'Languages',
-    courses: '60+ courses',
-    color: 'blue',
+    icon: "🌐",
+    color: "blue",
   },
   {
-    id: 4,
-    icon: '🎨',
-    title: 'Art & Design',
-    courses: '70+ courses',
-    color: 'pink',
+    icon: "🎨",
+    color: "pink",
   },
   {
-    id: 5,
-    icon: '🎵',
-    title: 'Music & Voice',
-    courses: '45+ courses',
-    color: 'green',
+    icon: "🎵",
+    color: "green",
   },
   {
-    id: 6,
-    icon: '🚀',
-    title: 'Life & Career',
-    courses: '90+ courses',
-    color: 'teal',
+    icon: "🚀",
+    color: "teal",
   },
-]
+];
+
+
+// Categories + Courses fetch karna
+const fetchCategories = async () => {
+  try {
+    loading.value = true;
+    error.value = "";
+
+    // Category API
+    const categoryResponse = await api.get("/categories/");
+
+    // Course API
+    const courseResponse = await api.get("/courses/");
+
+    const categoryData = categoryResponse.data;
+    const courseData = courseResponse.data;
+
+
+    // Category ko courses ke saath combine karna
+    categories.value = categoryData.map((category, index) => {
+
+      // Is category ke andar kitne courses hain
+      const courseCount = courseData.filter(
+        (course) => course.category === category.id
+      ).length;
+
+
+      return {
+        ...category,
+
+        // Frontend styling
+        icon:
+          categoryStyles[index % categoryStyles.length].icon,
+
+        color:
+          categoryStyles[index % categoryStyles.length].color,
+
+        // Course count
+        courses:
+          courseCount === 1
+            ? "1 course"
+            : `${courseCount} courses`,
+      };
+    });
+
+  } catch (err) {
+
+    console.error("Category API Error:", err);
+
+    error.value =
+      "Unable to load categories. Please try again.";
+
+  } finally {
+
+    loading.value = false;
+
+  }
+};
+
+
+// Component load hote hi API call
+onMounted(() => {
+  fetchCategories();
+});
 </script>
 
+
 <template>
+
   <section class="categories-section">
+
     <div class="container">
 
+      <!-- Section Heading -->
+
       <div class="section-heading">
+
         <div>
-          <span class="section-label">EXPLORE BY CATEGORY</span>
+
+          <span class="section-label">
+            EXPLORE BY CATEGORY
+          </span>
 
           <h2>
             Find what
@@ -62,35 +126,90 @@ const categories = [
             Explore our learning categories and discover something new
             to learn every day.
           </p>
+
         </div>
+
       </div>
 
-      <div class="categories-grid">
+
+      <!-- Loading -->
+
+      <div
+        v-if="loading"
+        class="loading"
+      >
+        Loading categories...
+      </div>
+
+
+      <!-- Error -->
+
+      <div
+        v-else-if="error"
+        class="error-message"
+      >
+        {{ error }}
+      </div>
+
+
+      <!-- No Categories -->
+
+      <div
+        v-else-if="categories.length === 0"
+        class="no-categories"
+      >
+        No categories available yet.
+      </div>
+
+
+      <!-- Categories -->
+
+      <div
+        v-else
+        class="categories-grid"
+      >
 
         <div
           v-for="category in categories"
           :key="category.id"
           :class="['category-card', category.color]"
         >
+
           <div class="category-icon">
             {{ category.icon }}
           </div>
 
+
           <div class="category-content">
-            <h3>{{ category.title }}</h3>
-            <p>{{ category.courses }}</p>
+
+            <h3>
+              {{ category.name }}
+            </h3>
+
+            <p>
+              {{ category.courses }}
+            </p>
+
           </div>
 
-          <span class="arrow">→</span>
+
+          <span class="arrow">
+            →
+          </span>
+
         </div>
 
       </div>
 
     </div>
+
   </section>
+
 </template>
 
+
 <style scoped>
+
 .categories-section {
   padding: 90px 0;
   background: #f7f8fc;
@@ -101,6 +220,9 @@ const categories = [
   margin: 0 auto;
   padding: 0 24px;
 }
+
+
+/* SECTION HEADING */
 
 .section-heading {
   margin-bottom: 40px;
@@ -133,11 +255,17 @@ const categories = [
   line-height: 1.7;
 }
 
+
+/* CATEGORY GRID */
+
 .categories-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 22px;
 }
+
+
+/* CATEGORY CARD */
 
 .category-card {
   position: relative;
@@ -157,17 +285,26 @@ const categories = [
   box-shadow: 0 15px 35px rgba(31, 36, 48, 0.1);
 }
 
+
+/* CATEGORY ICON */
+
 .category-icon {
   width: 65px;
   height: 65px;
   flex-shrink: 0;
+
   display: flex;
   align-items: center;
   justify-content: center;
+
   border-radius: 18px;
   background: white;
+
   font-size: 32px;
 }
+
+
+/* CONTENT */
 
 .category-content {
   flex: 1;
@@ -185,13 +322,17 @@ const categories = [
   font-size: 14px;
 }
 
+
+/* ARROW */
+
 .arrow {
   color: #5b55e8;
   font-size: 25px;
   font-weight: 700;
 }
 
-/* Category colors */
+
+/* CATEGORY COLORS */
 
 .category-card.purple {
   background: #eeecff;
@@ -217,15 +358,36 @@ const categories = [
   background: #e2f7f7;
 }
 
-/* Responsive */
+
+/* LOADING */
+
+.loading,
+.error-message,
+.no-categories {
+  padding: 40px;
+  text-align: center;
+  font-size: 18px;
+  color: #6c7485;
+}
+
+.error-message {
+  color: #d33;
+}
+
+
+/* RESPONSIVE */
 
 @media (max-width: 900px) {
+
   .categories-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
 }
 
+
 @media (max-width: 600px) {
+
   .categories-section {
     padding: 60px 0;
   }
@@ -237,5 +399,7 @@ const categories = [
   .categories-grid {
     grid-template-columns: 1fr;
   }
+
 }
-</style>         
+
+</style>
