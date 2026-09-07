@@ -1,109 +1,31 @@
 <script setup>
-import { ref, onMounted } from "vue";
-import api from "../services/api";
+import { onMounted, ref } from 'vue'
+import { getCategories } from '../lib/api'
 
-const categories = ref([]);
-const loading = ref(true);
-const error = ref("");
+const categories = ref([])
+const loading = ref(true)
+const error = ref('')
 
-
-// Category ke liye frontend styling
-const categoryStyles = [
-  {
-    icon: "💻",
-    color: "purple",
-  },
-  {
-    icon: "📐",
-    color: "orange",
-  },
-  {
-    icon: "🌐",
-    color: "blue",
-  },
-  {
-    icon: "🎨",
-    color: "pink",
-  },
-  {
-    icon: "🎵",
-    color: "green",
-  },
-  {
-    icon: "🚀",
-    color: "teal",
-  },
-];
-
-
-// Categories + Courses fetch karna
-const fetchCategories = async () => {
+async function loadCategories() {
+  loading.value = true
+  error.value = ''
   try {
-    loading.value = true;
-    error.value = "";
-
-    // Category API
-    const categoryResponse = await api.get("/categories/");
-
-    // Course API
-    const courseResponse = await api.get("/courses/");
-
-    const categoryData = categoryResponse.data;
-    const courseData = courseResponse.data;
-
-
-    // Category ko courses ke saath combine karna
-    categories.value = categoryData.map((category, index) => {
-
-      // Is category ke andar kitne courses hain
-      const courseCount = courseData.filter(
-        (course) => course.category === category.id
-      ).length;
-
-
-      return {
-        ...category,
-
-        // Frontend styling
-        icon:
-          categoryStyles[index % categoryStyles.length].icon,
-
-        color:
-          categoryStyles[index % categoryStyles.length].color,
-
-        // Course count
-        courses:
-          courseCount === 1
-            ? "1 course"
-            : `${courseCount} courses`,
-      };
-    });
-
-  } catch (err) {
-
-    console.error("Category API Error:", err);
-
-    error.value =
-      "Unable to load categories. Please try again.";
-
+    categories.value = await getCategories()
+  } catch (e) {
+    console.error('Category API error:', e)
+    error.value = 'Categories load nahi ho paaye. Backend start hai? Check /api/categories/.'
   } finally {
-
-    loading.value = false;
-
+    loading.value = false
   }
-};
+}
 
-
-// Component load hote hi API call
-onMounted(() => {
-  fetchCategories();
-});
+onMounted(loadCategories)
 </script>
 
 
 <template>
 
-  <section class="categories-section">
+  <section class="categories-section" id="categories">
 
     <div class="container">
 
@@ -131,43 +53,28 @@ onMounted(() => {
 
       </div>
 
-
       <!-- Loading -->
 
-      <div
-        v-if="loading"
-        class="loading"
-      >
-        Loading categories...
+      <div v-if="loading" class="state-msg">
+        <span class="spinner"></span> Categories load ho rahe hain…
       </div>
-
 
       <!-- Error -->
 
-      <div
-        v-else-if="error"
-        class="error-message"
-      >
+      <div v-else-if="error" class="state-msg error">
         {{ error }}
+        <button class="retry-btn" @click="loadCategories">Retry</button>
       </div>
 
+      <!-- Empty -->
 
-      <!-- No Categories -->
-
-      <div
-        v-else-if="categories.length === 0"
-        class="no-categories"
-      >
+      <div v-else-if="!categories.length" class="state-msg">
         No categories available yet.
       </div>
 
-
       <!-- Categories -->
 
-      <div
-        v-else
-        class="categories-grid"
-      >
+      <div v-else class="categories-grid">
 
         <div
           v-for="category in categories"
@@ -183,7 +90,7 @@ onMounted(() => {
           <div class="category-content">
 
             <h3>
-              {{ category.name }}
+              {{ category.title }}
             </h3>
 
             <p>
@@ -359,19 +266,50 @@ onMounted(() => {
 }
 
 
-/* LOADING */
+/* LOADING / ERROR STATES */
 
-.loading,
-.error-message,
-.no-categories {
+.state-msg {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 40px;
-  text-align: center;
-  font-size: 18px;
+  justify-content: center;
   color: #6c7485;
+  font-size: 17px;
+  background: #ffffff;
+  border: 1px solid #e6e8f0;
+  border-radius: 18px;
 }
 
-.error-message {
-  color: #d33;
+.state-msg.error {
+  color: #c0392b;
+  background: #ffe9e9;
+  flex-direction: column;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid #d7d9e2;
+  border-top-color: #5b55e8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.retry-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 22px;
+  background: #5b55e8;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 

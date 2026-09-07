@@ -1,99 +1,76 @@
 <script setup>
-import { ref, onMounted } from "vue";
-import api from "../services/api";
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { enrollInCourse, getCourses, getMyEnrollments } from '../lib/api'
+import { useAuth } from '../store/auth'
 
-const courses = ref([]);
-const loading = ref(true);
-const error = ref("");
+const router = useRouter()
+const { isAuthenticated } = useAuth()
 
+const courses = ref([])
+const loading = ref(true)
+const error = ref('')
+const enrollingId = ref(null)
+const enrollMsg = ref('')
+const enrolledMap = ref({})
 
-// Different icons/colors for courses
-const courseStyles = [
-  {
-    icon: "💻",
-    color: "purple",
-  },
-  {
-    icon: "📐",
-    color: "orange",
-  },
-  {
-    icon: "🎨",
-    color: "pink",
-  },
-  {
-    icon: "📚",
-    color: "blue",
-  },
-  {
-    icon: "🧠",
-    color: "green",
-  },
-];
-
-
-// Convert duration into readable format
-const formatDuration = (hours) => {
-  const totalMinutes = Math.round(Number(hours) * 60);
-
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-
-  if (m === 0) {
-    return `${h}h`;
-  }
-
-  return `${h}h ${m}m`;
-};
-
-
-// Convert students count
-const formatStudents = (count) => {
-  const number = Number(count);
-
-  if (number >= 1000) {
-    return `${(number / 1000).toFixed(1)}k`;
-  }
-
-  return number;
-};
-
-
-// Get courses from Django API
-const fetchCourses = async () => {
+async function loadCourses() {
+  loading.value = true
+  error.value = ''
   try {
-    loading.value = true;
-    error.value = "";
-
-    const response = await api.get("/courses/");
-
-    courses.value = response.data.map((course, index) => ({
-      ...course,
-
-      icon: courseStyles[index % courseStyles.length].icon,
-
-      color: courseStyles[index % courseStyles.length].color,
-
-      category: course.category_name,
-
-      duration: formatDuration(course.duration_hours),
-
-      students: formatStudents(course.students_count),
-    }));
-  } catch (err) {
-    console.error("Course API Error:", err);
-
-    error.value = "Unable to load courses. Please try again.";
+    courses.value = await getCourses()
+    // Mark courses the learner is already enrolled in so the button
+    // does not offer to enroll them a second time.
+    if (isAuthenticated.value) {
+      try {
+        const mine = await getMyEnrollments()
+        const map = {}
+        for (const e of mine) {
+          if (e.course?.id) map[e.course.id] = true
+        }
+        enrolledMap.value = map
+      } catch (e) {
+        // A failed enrollment lookup should not hide the catalog.
+        console.warn('Could not load enrollments:', e)
+      }
+    }
+  } catch (e) {
+    console.error('Course API error:', e)
+    error.value = 'Courses load nahi ho paaye. Backend start hai? Check /api/courses/.'
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
+function openCourse(course) {
+  router.push({ name: 'course-detail', params: { slug: course.slug } })
+}
 
-// Fetch courses when component loads
-onMounted(() => {
-  fetchCourses();
-});
+async function onEnroll(event, course) {
+  event.stopPropagation()
+  if (!isAuthenticated.value) {
+    router.push({ name: 'login', query: { next: `/courses/${course.slug}` } })
+    return
+  }
+  if (enrolledMap.value[course.id]) return
+  enrollingId.value = course.id
+  enrollMsg.value = ''
+  try {
+    await enrollInCourse(course.id)
+    enrolledMap.value = { ...enrolledMap.value, [course.id]: true }
+    enrollMsg.value = `You're enrolled in "${course.title}"! 🎉`
+  } catch (e) {
+    if (e.message === 'AUTH_REQUIRED') {
+      router.push({ name: 'login', query: { next: `/courses/${course.slug}` } })
+    } else {
+      enrollMsg.value = e.message
+    }
+  } finally {
+    enrollingId.value = null
+  }
+}
+
+onMounted(loadCourses)
 </script>
 
 
@@ -121,30 +98,23 @@ onMounted(() => {
           </p>
         </div>
 
-        <button class="view-all">
-          View all courses →
-        </button>
-
       </div>
-
 
       <!-- Loading -->
-      <div v-if="loading" class="loading">
-        Loading courses...
+      <div v-if="loading" class="state-msg">
+        <span class="spinner"></span> Courses load ho rahe hain…
       </div>
-
 
       <!-- Error -->
-      <div v-else-if="error" class="error-message">
+      <div v-else-if="error" class="state-msg error">
         {{ error }}
+        <button class="retry-btn" @click="loadCourses">Retry</button>
       </div>
 
-
-      <!-- No Courses -->
-      <div v-else-if="courses.length === 0" class="no-courses">
+      <!-- Empty -->
+      <div v-else-if="!courses.length" class="state-msg">
         No courses available yet.
       </div>
-
 
       <!-- Course Cards -->
       <div v-else class="courses-grid">
@@ -153,6 +123,7 @@ onMounted(() => {
           v-for="course in courses"
           :key="course.id"
           class="course-card"
+          @click="openCourse(course)"
         >
 
           <!-- Course Image / Icon -->
@@ -186,7 +157,7 @@ onMounted(() => {
             <div class="course-info">
 
               <span>
-                📚 {{ course.lessons }} lessons
+                📚 {{ course.lessons }}
               </span>
 
               <span>
@@ -218,14 +189,23 @@ onMounted(() => {
               <div class="price">
 
                 <strong>
-                  ₹{{ Number(course.price).toLocaleString("en-IN") }}
+                  {{ course.price }}
                 </strong>
+
+                <del v-if="course.oldPrice">
+                  {{ course.oldPrice }}
+                </del>
 
               </div>
 
-
-              <button class="enroll-btn">
-                Enroll
+              <button
+                class="enroll-btn"
+                @click="onEnroll($event, course)"
+                :disabled="enrollingId === course.id || enrolledMap[course.id]"
+              >
+                <span v-if="enrollingId === course.id">Enrolling…</span>
+                <span v-else-if="enrolledMap[course.id]">Enrolled ✓</span>
+                <span v-else>Enroll</span>
               </button>
 
             </div>
@@ -236,6 +216,7 @@ onMounted(() => {
 
       </div>
 
+      <div v-if="enrollMsg" class="enroll-toast">{{ enrollMsg }}</div>
     </div>
 
   </section>
@@ -293,22 +274,6 @@ onMounted(() => {
   line-height: 1.7;
 }
 
-.view-all {
-  padding: 14px 24px;
-  background: white;
-  color: #5b55e8;
-  border: 2px solid #5b55e8;
-  border-radius: 30px;
-  font-size: 16px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.view-all:hover {
-  background: #eeecff;
-}
-
 
 /* COURSE GRID */
 
@@ -327,9 +292,8 @@ onMounted(() => {
   border: 1px solid #e6e8f0;
   border-radius: 22px;
   box-shadow: 0 8px 25px rgba(31, 36, 48, 0.07);
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
 }
 
 .course-card:hover {
@@ -360,12 +324,16 @@ onMounted(() => {
   background: #fdeaf2;
 }
 
-.course-image.blue {
-  background: #e8f3ff;
+.course-image.teal {
+  background: #e2f7f7;
 }
 
 .course-image.green {
-  background: #e8f8ef;
+  background: #e3f6f0;
+}
+
+.course-image.blue {
+  background: #e8f0ff;
 }
 
 .course-icon {
@@ -454,13 +422,18 @@ onMounted(() => {
 
 .price {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
 }
 
 .price strong {
   color: #202433;
   font-size: 23px;
+}
+
+.price del {
+  color: #9aa1af;
+  font-size: 15px;
 }
 
 .enroll-btn {
@@ -473,24 +446,73 @@ onMounted(() => {
   cursor: pointer;
 }
 
-.enroll-btn:hover {
+.enroll-btn:hover:not(:disabled) {
   background: #4646cf;
 }
 
-
-/* LOADING / ERROR */
-
-.loading,
-.error-message,
-.no-courses {
-  padding: 40px;
-  text-align: center;
-  font-size: 18px;
-  color: #6c7485;
+.enroll-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
-.error-message {
-  color: #d33;
+
+/* LOADING / ERROR STATES */
+
+.state-msg {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 40px;
+  justify-content: center;
+  color: #6c7485;
+  font-size: 17px;
+  background: #f7f8fc;
+  border-radius: 18px;
+}
+
+.state-msg.error {
+  color: #c0392b;
+  background: #ffe9e9;
+  flex-direction: column;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid #d7d9e2;
+  border-top-color: #5b55e8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.retry-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 22px;
+  background: #5b55e8;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.enroll-toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1c9c7a;
+  color: white;
+  padding: 14px 22px;
+  border-radius: 40px;
+  font-weight: 600;
+  box-shadow: 0 12px 30px rgba(28, 156, 122, 0.35);
+  z-index: 50;
 }
 
 
