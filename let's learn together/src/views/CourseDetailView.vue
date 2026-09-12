@@ -170,6 +170,40 @@ async function onEnroll() {
   }
 }
 
+async function onExitCourse(event, course) {
+  event.stopPropagation()
+
+  const confirmed = window.confirm(
+    `Are you sure you want to exit "${course.title}"?`
+  )
+
+  if (!confirmed) return
+
+  enrollingId.value = course.id
+  enrollMsg.value = ''
+
+  try {
+    await unenrollFromCourse(course.id)
+
+    const updated = { ...enrolledMap.value }
+    delete updated[course.id]
+    enrolledMap.value = updated
+
+    enrollMsg.value = `You exited "${course.title}".`
+  } catch (e) {
+    if (e.message === 'AUTH_REQUIRED') {
+      router.push({
+        name: 'login',
+        query: { next: `/courses/${course.slug}` },
+      })
+    } else {
+      enrollMsg.value = e.message
+    }
+  } finally {
+    enrollingId.value = null
+  }
+}
+
 function goBack() {
   router.push('/')
 }

@@ -119,6 +119,37 @@ export async function enrollInCourse(courseId) {
   }
 }
 
+export async function unenrollFromCourse(courseId) {
+  const enrollments = await getMyEnrollments()
+
+  const enrollment = enrollments.find(
+    (e) => e.course?.id === courseId
+  )
+
+  if (!enrollment) {
+    throw new Error('You are not enrolled in this course.')
+  }
+
+  const token = readToken()
+
+  const res = await fetch(`${API_BASE}/enrollments/${enrollment.id}/`, {
+    method: 'DELETE',
+    headers: token
+      ? { Authorization: `Bearer ${token}` }
+      : {},
+  })
+
+  if (res.status === 401 || res.status === 403) {
+    throw new Error('AUTH_REQUIRED')
+  }
+
+  if (!res.ok) {
+    throw new Error('Could not exit the course.')
+  }
+
+  return true
+}
+
 // List the current user's enrollments.
 export async function getMyEnrollments() {
   return unwrap(await request('/enrollments/'))

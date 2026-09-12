@@ -1,7 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { enrollInCourse, getCourses, getMyEnrollments } from '../lib/api'
+import { enrollInCourse, unenrollFromCourse, getCourses, getMyEnrollments } from '../lib/api'
 import { useAuth } from '../store/auth'
 
 const router = useRouter()
@@ -62,6 +62,40 @@ async function onEnroll(event, course) {
   } catch (e) {
     if (e.message === 'AUTH_REQUIRED') {
       router.push({ name: 'login', query: { next: `/courses/${course.slug}` } })
+    } else {
+      enrollMsg.value = e.message
+    }
+  } finally {
+    enrollingId.value = null
+  }
+}
+
+async function onExitCourse(event, course) {
+  event.stopPropagation()
+
+  const confirmed = window.confirm(
+    `Are you sure you want to exit "${course.title}"?`
+  )
+
+  if (!confirmed) return
+
+  enrollingId.value = course.id
+  enrollMsg.value = ''
+
+  try {
+    await unenrollFromCourse(course.id)
+
+    const updated = { ...enrolledMap.value }
+    delete updated[course.id]
+    enrolledMap.value = updated
+
+    enrollMsg.value = `You exited "${course.title}".`
+  } catch (e) {
+    if (e.message === 'AUTH_REQUIRED') {
+      router.push({
+        name: 'login',
+        query: { next: `/courses/${course.slug}` },
+      })
     } else {
       enrollMsg.value = e.message
     }
@@ -198,15 +232,25 @@ onMounted(loadCourses)
 
               </div>
 
-              <button
-                class="enroll-btn"
-                @click="onEnroll($event, course)"
-                :disabled="enrollingId === course.id || enrolledMap[course.id]"
-              >
-                <span v-if="enrollingId === course.id">Enrolling…</span>
-                <span v-else-if="enrolledMap[course.id]">Enrolled ✓</span>
-                <span v-else>Enroll</span>
-              </button>
+             <button
+             v-if="enrolledMap[course.id]"
+             class="enroll-btn exit-btn"
+             @click="onExitCourse($event, course)"
+             :disabled="enrollingId === course.id"
+>
+  <span v-if="enrollingId === course.id">Exiting…</span>
+  <span v-else>Exit Course</span>
+</button>
+
+<button
+  v-else
+  class="enroll-btn"
+  @click="onEnroll($event, course)"
+  :disabled="enrollingId === course.id"
+>
+  <span v-if="enrollingId === course.id">Enrolling…</span>
+  <span v-else>Enroll</span>
+</button>
 
             </div>
 
@@ -455,6 +499,13 @@ onMounted(loadCourses)
   cursor: not-allowed;
 }
 
+.exit-btn {
+  background: #e85b5b;
+}
+
+.exit-btn:hover:not(:disabled) {
+  background: #cf4646;
+}
 
 /* LOADING / ERROR STATES */
 
